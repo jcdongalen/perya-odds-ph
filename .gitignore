@@ -1,0 +1,43 @@
+# Gradle
+.gradle/
+build/
+*/build/
+
+# Android
+*.apk
+*.ap_
+*.aab
+*.dex
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild
+.cxx
+
+# iOS
+*.xcodeproj
+*.xcworkspace
+!default.xcworkspace
+xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+DerivedData/
+Pods/
+
+# Kotlin
+*.class
+*.log
+*.jar
+*.war
+*.ear
+
+# Other
+.vscode/
+*.swp
+*.swo
+*~

@@ -1,0 +1,300 @@
+# Implementation Plan: Perya Odds MVP
+
+## Overview
+
+Implement the Perya Odds PH Kotlin Multiplatform Mobile (KMM) app. The plan follows the layered architecture: shared Kotlin module first (data models, engines, repository, viewmodel), then Android app (Jetpack Compose), then iOS app (SwiftUI). Each step builds on the previous and ends with everything wired together.
+
+## Tasks
+
+- [x] 1. Initialize KMM project structure and core types
+  - Create KMM project using Android Studio or IntelliJ IDEA with KMM plugin
+  - Set up module structure: `shared` (commonMain, androidMain, iosMain), `androidApp`, `iosApp`
+  - Configure Android target: `minSdk = 23` (Android 6.0), `compileSdk = 36` (latest), `targetSdk = 36`
+  - In `shared/src/commonMain/kotlin`, create package structure: `domain/models`, `domain/engines`, `domain/registry`, `data/repository`, `presentation`
+  - Define all shared data models in `domain/models/`: `GameType`, `GameConfig`, `Observation`, `GameSession`, `ProbabilityResult`, `OutcomeProbability`, `BiasResult`, `OutcomeBias`, `StrategyResult`, `ConfidenceLevel`, `ValidationError`, `Result<T,E>`
+  - Add dependencies to `shared/build.gradle.kts`: `kotlinx-serialization-json`, `kotlinx-coroutines-core`, `kotest-property` (for property testing), `kotlin-test`
+  - _Requirements: 1.1, 1.7, 2.1_
+
+- [x] 2. Implement GameRegistry and 3-Ball Drop game config
+  - [x] 2.1 Create `domain/registry/GameRegistry.kt` implementing the `GameRegistry` interface with `getAll`, `getById`, and `register` methods
+    - Use a `MutableMap<String, GameConfig>` as the backing store
+    - _Requirements: 1.1, 1.8_
+  - [x] 2.2 Create `domain/registry/games/ThreeBallDrop.kt` defining the `GameConfig` for `three_ball_drop`
+    - `outcomes: listOf("Ace", "King", "Queen", "Jack", "10", "9")`, `hitsPerRound: 3`, `expectedProbability: 1.0/6.0`, `comingSoon: false`
+    - Register it in a `domain/registry/GameRegistryProvider.kt` bootstrap object
+    - _Requirements: 1.1, 1.8, 2.1_
+
+- [x] 3. Implement ObservationEngine
+  - [x] 3.1 Create `domain/engines/ObservationEngine.kt` implementing `recordObservation` and `resetSession`
+    - `recordObservation`: validate `hits.size == config.hitsPerRound`; on success return updated session (immutable); on failure return `ValidationError`
+    - `resetSession`: return a fresh `GameSession` with `totalRounds = 0`, zeroed `hitCounts`, empty `observations`
+    - _Requirements: 2.2, 2.3, 2.4, 2.5, 2.6, 11.4, 11.5_
+  - [x] 3.2 Write property test for ObservationEngine in `shared/src/commonTest/kotlin` — Property 1: valid observation updates counts
+    - **Property 1: Observation recording updates hit counts and round count correctly**
+    - **Validates: Requirements 2.2, 2.6**
+    - Tag: `// Feature: perya-odds-mvp, Property 1`
+    - Use Kotest property testing with minimum 100 iterations
+  - [x] 3.3 Write property test for ObservationEngine — Property 2: invalid observations rejected without mutation
+    - **Property 2: Invalid observations are rejected without mutating session**
+    - **Validates: Requirements 2.3, 2.4**
+    - Tag: `// Feature: perya-odds-mvp, Property 2`
+  - [x] 3.4 Write property test for ObservationEngine — Property 9: reset always produces clean session
+    - **Property 9: Session reset always produces a clean empty dataset**
+    - **Validates: Requirements 11.4, 11.5**
+    - Tag: `// Feature: perya-odds-mvp, Property 9`
+  - [x] 3.5 Write unit tests for ObservationEngine
+    - Test duplicate card selections within a round
+    - Test hit count accumulation across multiple rounds
+    - Test `TOO_FEW_HITS` and `TOO_MANY_HITS` error codes
+    - _Requirements: 2.2, 2.3, 2.4, 2.5, 2.6_
+
+- [x] 4. Implement ProbabilityEngine
+  - [x] 4.1 Create `domain/engines/ProbabilityEngine.kt` implementing `computeProbabilities`
+    - Compute `observed(card) = hitCounts[card] / (totalRounds × hitsPerRound)` for each outcome
+    - Compute `expected(card) = 1.0 / outcomes.size`
+    - Assign `ConfidenceLevel` per thresholds: < 100 → Low, 100–199 → Medium, 200–499 → High, ≥ 500 → VeryHigh
+    - Return default expected probabilities when `totalRounds == 0`
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 5.1, 5.2, 5.3, 5.4_
+  - [x] 4.2 Write property test for ProbabilityEngine — Property 3: observed probability formula and sum-to-1
+    - **Property 3: Observed probability formula holds for any session**
+    - **Validates: Requirements 3.1, 3.2**
+    - Tag: `// Feature: perya-odds-mvp, Property 3`
+  - [x] 4.3 Write property test for ProbabilityEngine — Property 5: confidence level is exhaustive and monotone
+    - **Property 5: Confidence level assignment is exhaustive and monotone**
+    - **Validates: Requirements 5.1, 5.2, 5.3, 5.4**
+    - Tag: `// Feature: perya-odds-mvp, Property 5`
+  - [x] 4.4 Write unit tests for ProbabilityEngine
+    - Test zero-round edge case returns expected defaults
+    - Test each confidence level boundary (99, 100, 199, 200, 499, 500)
+    - _Requirements: 3.4, 5.1, 5.2, 5.3, 5.4_
+
+- [x] 5. Implement BiasDetectionEngine
+  - [x] 5.1 Create `domain/engines/BiasDetectionEngine.kt` implementing `detectBias`
+    - Compute `deviation(card) = (observed − expected) / expected` for each outcome
+    - Classify: deviation > 0 → Hot, deviation < 0 → Cold, deviation == 0 → Neutral
+    - _Requirements: 4.1, 4.2, 4.3, 4.4_
+  - [x] 5.2 Write property test for BiasDetectionEngine — Property 4: deviation formula and classification consistency
+    - **Property 4: Deviation formula and bias classification are consistent**
+    - **Validates: Requirements 4.1, 4.2, 4.3, 4.4**
+    - Tag: `// Feature: perya-odds-mvp, Property 4`
+  - [x] 5.3 Write unit tests for BiasDetectionEngine
+    - Test all three classification branches with concrete values
+    - _Requirements: 4.1, 4.2, 4.3, 4.4_
+
+- [x] 6. Implement StrategyEngine
+  - [x] 6.1 Create `domain/engines/StrategyEngine.kt` implementing `recommend`
+    - Sort outcomes by observed probability descending; break ties by canonical order index
+    - Select top-N cards for mode N ∈ {1, 2, 3}
+    - Compute `winProbability = 1.0 − (1.0 − sumOfSelectedProbabilities).pow(3)`
+    - Fall back to expected probability (1.0/6.0) when dataset is empty
+    - _Requirements: 6.2, 6.3, 6.5, 7.2, 7.3, 8.2, 8.3_
+  - [x] 6.2 Write property test for StrategyEngine — Property 6: top-N selection correctness
+    - **Property 6: Strategy top-N selection is correct for any session and mode**
+    - **Validates: Requirements 6.2, 6.5, 7.2, 8.2**
+    - Tag: `// Feature: perya-odds-mvp, Property 6`
+  - [x] 6.3 Write property test for StrategyEngine — Property 7: win probability formula
+    - **Property 7: Win probability formula is correctly applied for any mode**
+    - **Validates: Requirements 6.3, 7.3, 8.3**
+    - Tag: `// Feature: perya-odds-mvp, Property 7`
+  - [x] 6.4 Write unit tests for StrategyEngine
+    - Test tie-breaking by canonical order
+    - Test empty dataset fallback
+    - Test win probability values for modes 1, 2, 3
+    - _Requirements: 6.2, 6.3, 6.5, 7.2, 7.3, 8.2, 8.3_
+
+- [x] 7. Checkpoint — Ensure all engine tests pass
+  - Run the full test suite; all engine unit tests and property tests must be green before proceeding.
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 8. Implement SessionRepository with expect/actual
+  - [x] 8.1 Create `data/repository/SessionRepository.kt` in commonMain with interface defining `loadAll`, `save`, and `delete` as suspend functions
+    - Storage key format: `perya_odds_session_{gameType}`
+    - _Requirements: 11.1, 11.2, 11.3_
+  - [x] 8.2 Create Android implementation in `androidMain/kotlin/data/repository/SessionRepositoryImpl.kt`
+    - Use DataStore Preferences for persistence
+    - `loadAll`: read all registered game types from DataStore; return empty sessions for missing keys
+    - `save`: serialize `GameSession` to JSON using kotlinx.serialization and write to DataStore
+    - `delete`: remove the key from DataStore
+    - Handle read/write failures gracefully (log error, return Result.Error)
+    - _Requirements: 11.1, 11.2, 11.3_
+  - [x] 8.3 Create iOS implementation in `iosMain/kotlin/data/repository/SessionRepositoryImpl.kt`
+    - Use UserDefaults for persistence
+    - Same logic as Android but using UserDefaults API
+    - _Requirements: 11.1, 11.2, 11.3_
+  - [x] 8.4 Write property test for SessionRepository — Property 10: persistence round-trip is lossless
+    - **Property 10: Persistence round-trip is lossless for any session**
+    - **Validates: Requirements 11.1, 11.2**
+    - Tag: `// Feature: perya-odds-mvp, Property 10`
+    - Use in-memory mock implementation for testing
+  - [x] 8.5 Write unit tests for SessionRepository
+    - Test missing key returns empty session
+    - Test serialization / deserialization correctness
+    - _Requirements: 11.1, 11.2, 11.3_
+
+- [x] 9. Implement GameSessionViewModel (shared state management)
+  - [x] 9.1 Create `presentation/GameSessionViewModel.kt` in commonMain
+    - Use Kotlin StateFlow for state: `activeGameType`, `sessions`, `strategyMode`
+    - Implement functions: `selectGame`, `recordObservation`, `resetSession`, `setStrategyMode`, `loadSessions`
+    - Wire `ObservationEngine`, `SessionRepository` into ViewModel (load on init, save on each observation/reset)
+    - Use coroutines for async operations
+    - _Requirements: 1.3, 1.6, 1.7, 2.2, 11.1, 11.2, 11.4, 11.5_
+  - [x] 9.2 Write property test for GameSessionViewModel — Property 8: dataset isolation between game types
+    - **Property 8: Dataset isolation — observations for one game type do not affect another**
+    - **Validates: Requirements 1.7**
+    - Tag: `// Feature: perya-odds-mvp, Property 8`
+  - [x] 9.3 Write unit tests for GameSessionViewModel
+    - Test each function produces correct state updates
+    - Use in-memory mock repository for testing
+    - _Requirements: 1.3, 1.6, 2.2, 11.4, 11.5_
+
+- [x] 10. Implement Android app with Jetpack Compose
+  - [x] 10.1 Set up Android module structure in `androidApp`
+    - Configure `build.gradle.kts`: `minSdk = 23`, `compileSdk = 36`, `targetSdk = 36`
+    - Add dependencies: Jetpack Compose, Compose Navigation, Lifecycle ViewModel, Koin for DI
+    - Create ViewModel wrapper that wraps shared `GameSessionViewModel`
+    - Ensure compatibility with Android 6.0+ (API 23+)
+  - [x] 10.2 Implement navigation in `MainActivity.kt`
+    - Use Compose Navigation with NavHost
+    - Root: `GameSelectionScreen` (shown when no `activeGameType`), then `MainNavigation`
+    - `MainNavigation`: Bottom Navigation with `ObservationScreen`, `AnalyticsDashboard`, `StrategyScreen`
+    - _Requirements: 1.2, 1.3, 1.5_
+
+- [x] 11. Implement Android UI components (Jetpack Compose)
+  - [x] 11.1 Create `androidApp/src/main/java/components/CardSelector.kt`
+    - Render 6 card buttons; allow multi-select up to 3; prevent 4th selection
+    - _Requirements: 2.1, 2.4, 2.5_
+  - [x] 11.2 Create `androidApp/src/main/java/components/ProbabilityBar.kt`
+    - Horizontal bar showing observed vs expected frequency
+    - _Requirements: 9.1_
+  - [x] 11.3 Create `androidApp/src/main/java/components/BiasIndicator.kt`
+    - Color-coded badge: red (Hot), blue (Cold), grey (Neutral)
+    - _Requirements: 4.5, 9.2_
+  - [x] 11.4 Create `androidApp/src/main/java/components/ConfidenceBadge.kt`
+    - Display Low / Medium / High / VeryHigh label
+    - _Requirements: 5.5, 6.4_
+  - [x] 11.5 Create `androidApp/src/main/java/components/StrategyModeToggle.kt`
+    - 3-way toggle for modes 1 / 2 / 3
+    - _Requirements: 7.1, 8.1_
+  - [x] 11.6 Create `androidApp/src/main/java/components/DisclaimerBanner.kt`
+    - Persistent disclaimer text; shows risk note when mode > 1
+    - _Requirements: 10.1, 10.2, 10.3_
+  - [x] 11.7 Create `androidApp/src/main/java/components/WinProbabilityDisplay.kt`
+    - Display computed win probability as percentage
+    - _Requirements: 6.4, 7.4, 8.4_
+
+- [x] 12. Implement Android screens
+  - [x] 12.1 Create `GameSelectionScreen.kt`
+    - List all registered `GameConfig` entries from `GameRegistry`
+    - Show "Coming Soon" label for configs with `comingSoon = true`
+    - On tap of an active game, call ViewModel's `selectGame` and navigate to MainNavigation
+    - _Requirements: 1.1, 1.2, 1.3, 1.8_
+  - [x] 12.2 Create `ObservationScreen.kt`
+    - Display active game name
+    - Render `CardSelector`; on confirm call ViewModel's `recordObservation`
+    - Show inline validation error for `TOO_FEW_HITS`
+    - Show success feedback after each recorded round
+    - _Requirements: 1.4, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
+  - [x] 12.3 Create `AnalyticsDashboard.kt`
+    - Derive `ProbabilityResult` and `BiasResult` using engines
+    - Render `ProbabilityBar`, `BiasIndicator`, and deviation score for each card
+    - Show "No data recorded yet" when `totalRounds == 0`
+    - _Requirements: 1.4, 4.5, 9.1, 9.2, 9.3, 9.4_
+  - [x] 12.4 Create `StrategyScreen.kt`
+    - Derive `StrategyResult` using `StrategyEngine` with current `strategyMode`
+    - Render `StrategyModeToggle`, `WinProbabilityDisplay`, `ConfidenceBadge`, `DisclaimerBanner`
+    - Display selected cards and their individual observed probabilities
+    - Show high-exposure warning when mode == 3
+    - _Requirements: 1.4, 5.5, 6.1, 6.2, 6.3, 6.4, 6.5, 7.1, 7.2, 7.3, 7.4, 8.1, 8.2, 8.3, 8.4, 8.5, 10.1, 10.2, 10.3_
+  - [x] 12.5 Implement dataset reset flow
+    - Add "Reset Data" option in navigation (e.g., top bar menu)
+    - Show confirmation dialog before resetting
+    - On confirm, call ViewModel's `resetSession`
+    - _Requirements: 11.4, 11.5_
+
+- [x] 13. Implement iOS app with SwiftUI
+  - [x] 13.1 Set up iOS module structure in `iosApp`
+    - Create ObservableObject wrapper around shared `GameSessionViewModel`
+    - Use Combine to bridge Kotlin StateFlow to SwiftUI
+  - [x] 13.2 Implement navigation in `ContentView.swift`
+    - Use NavigationStack + TabView
+    - Root: `GameSelectionView` (shown when no `activeGameType`), then `MainTabView`
+    - `MainTabView`: TabView with `ObservationView`, `AnalyticsDashboard`, `StrategyView`
+    - _Requirements: 1.2, 1.3, 1.5_
+
+- [x] 14. Implement iOS UI components (SwiftUI)
+  - [x] 14.1 Create `iosApp/iosApp/components/CardSelectorView.swift`
+    - Render 6 card buttons; allow multi-select up to 3
+    - _Requirements: 2.1, 2.4, 2.5_
+  - [x] 14.2 Create `iosApp/iosApp/components/ProbabilityBarView.swift`
+    - Horizontal bar showing observed vs expected frequency
+    - _Requirements: 9.1_
+  - [x] 14.3 Create `iosApp/iosApp/components/BiasIndicatorView.swift`
+    - Color-coded badge: red (Hot), blue (Cold), grey (Neutral)
+    - _Requirements: 4.5, 9.2_
+  - [x] 14.4 Create `iosApp/iosApp/components/ConfidenceBadgeView.swift`
+    - Display Low / Medium / High / VeryHigh label
+    - _Requirements: 5.5, 6.4_
+  - [x] 14.5 Create `iosApp/iosApp/components/StrategyModeToggleView.swift`
+    - 3-way toggle for modes 1 / 2 / 3
+    - _Requirements: 7.1, 8.1_
+  - [x] 14.6 Create `iosApp/iosApp/components/DisclaimerBannerView.swift`
+    - Persistent disclaimer text; shows risk note when mode > 1
+    - _Requirements: 10.1, 10.2, 10.3_
+  - [x] 14.7 Create `iosApp/iosApp/components/WinProbabilityDisplayView.swift`
+    - Display computed win probability as percentage
+    - _Requirements: 6.4, 7.4, 8.4_
+
+- [x] 15. Implement iOS screens
+  - [x] 15.1 Create `GameSelectionView.swift`
+    - List all registered `GameConfig` entries
+    - Show "Coming Soon" label for configs with `comingSoon = true`
+    - On tap, call ViewModel's `selectGame` and navigate
+    - _Requirements: 1.1, 1.2, 1.3, 1.8_
+  - [x] 15.2 Create `ObservationView.swift`
+    - Display active game name
+    - Render `CardSelectorView`; on confirm call ViewModel's `recordObservation`
+    - Show inline validation error
+    - _Requirements: 1.4, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
+  - [x] 15.3 Create `AnalyticsDashboardView.swift`
+    - Derive `ProbabilityResult` and `BiasResult`
+    - Render probability bars, bias indicators, deviation scores
+    - Show "No data recorded yet" when empty
+    - _Requirements: 1.4, 4.5, 9.1, 9.2, 9.3, 9.4_
+  - [x] 15.4 Create `StrategyView.swift`
+    - Derive `StrategyResult` using `StrategyEngine`
+    - Render toggle, win probability, confidence badge, disclaimer
+    - Show high-exposure warning when mode == 3
+    - _Requirements: 1.4, 5.5, 6.1, 6.2, 6.3, 6.4, 6.5, 7.1, 7.2, 7.3, 7.4, 8.1, 8.2, 8.3, 8.4, 8.5, 10.1, 10.2, 10.3_
+  - [x] 15.5 Implement dataset reset flow
+    - Add "Reset Data" option in navigation
+    - Show confirmation alert before resetting
+    - On confirm, call ViewModel's `resetSession`
+    - _Requirements: 11.4, 11.5_
+
+- [x] 16. Wire everything together and handle error states
+  - [x] 16.1 Android: Initialize DI in Application class; handle storage errors with Snackbar
+    - Show non-blocking Snackbar if DataStore read fails on launch
+    - Show Snackbar if DataStore write fails after observation
+    - _Requirements: 1.2, 1.6, 11.1, 11.2, 11.3_
+  - [x] 16.2 iOS: Initialize ViewModel in App struct; handle storage errors with alerts
+    - Show non-blocking alert if UserDefaults read fails on launch
+    - Show alert if UserDefaults write fails after observation
+    - _Requirements: 1.2, 1.6, 11.1, 11.2, 11.3_
+    - _Note: Requires macOS/Xcode environment_
+
+- [x] 17. Final checkpoint — Ensure all tests pass
+  - Run the full test suite (unit + property tests) in shared module
+  - Test Android app: first launch → game selection → observation → analytics → strategy
+  - iOS app testing skipped (requires macOS/Xcode)
+  - _Note: All shared module tests passing (23 tests). Android app fully functional._
+
+## Notes
+
+- Tasks marked with `*` are optional and can be skipped for a faster MVP build
+- Each task references specific requirements for traceability
+- Checkpoints (tasks 7 and 17) ensure incremental validation before moving to the next layer
+- Property tests use **Kotest Property Testing** with a minimum of 100 iterations each; tag every property test with `// Feature: perya-odds-mvp, Property N`
+- Unit tests complement property tests — both are needed
+- All engine functions are pure; side effects live only in ViewModel and `SessionRepository`
+- Shared business logic is written once in Kotlin and used by both Android and iOS
+- Platform-specific code is only for UI and storage implementation

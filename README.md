@@ -12,7 +12,7 @@ Perya Odds PH
 com.jcdongalen.peryaodds
 
 ## 1.3 Platforms
-- Android (latest stable versions)
+- Android (API 23 / Android 6.0 to latest stable versions)
 - iOS (latest stable versions)
 
 ## 1.4 Description
@@ -271,10 +271,12 @@ The app must always display:
 
 # 12. ⚙️ System Architecture
 
-## Shared Logic Layer
+## Shared Kotlin Module (KMM)
+- business logic engines
 - probability engine
 - observation analyzer
 - strategy engine
+- data models and repositories
 
 ## Platform Layer
 - Android (Jetpack Compose)
