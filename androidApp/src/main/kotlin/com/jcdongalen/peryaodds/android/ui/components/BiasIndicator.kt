@@ -8,27 +8,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.jcdongalen.peryaodds.shared.domain.models.BiasType
+import com.jcdongalen.peryaodds.shared.domain.models.BiasClassification
 
 /**
  * BiasIndicator displays a color-coded badge for bias classification.
  * - Hot: Red
  * - Cold: Blue
  * - Neutral: Grey
- * 
+ *
  * @param biasType The bias classification
  */
 @Composable
 fun BiasIndicator(
-    biasType: BiasType,
+    biasType: BiasClassification,
     modifier: Modifier = Modifier
 ) {
     val (color, text) = when (biasType) {
-        BiasType.HOT -> Color(0xFFEF5350) to "Hot"
-        BiasType.COLD -> Color(0xFF42A5F5) to "Cold"
-        BiasType.NEUTRAL -> Color(0xFF9E9E9E) to "Neutral"
+        BiasClassification.Hot -> Color(0xFFEF5350) to "Hot"
+        BiasClassification.Cold -> Color(0xFF42A5F5) to "Cold"
+        BiasClassification.Neutral -> Color(0xFF9E9E9E) to "Neutral"
     }
-    
+
     Text(
         text = text,
         modifier = modifier

@@ -6,9 +6,9 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Strategy
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -25,7 +25,7 @@ import com.jcdongalen.peryaodds.android.ui.screens.ObservationScreen
 import com.jcdongalen.peryaodds.android.ui.screens.StrategyScreen
 import com.jcdongalen.peryaodds.android.ui.theme.PeryaOddsTheme
 import com.jcdongalen.peryaodds.shared.presentation.GameSessionViewModel
-import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PeryaOddsApp() {
-    val viewModel: GameSessionViewModel = koinViewModel()
+    val viewModel: GameSessionViewModel = koinInject()
     val activeGameType by viewModel.activeGameType.collectAsState()
     val error by viewModel.error.collectAsState()
     val navController = rememberNavController()
@@ -128,6 +128,6 @@ data class BottomNavItem(
 
 val bottomNavItems = listOf(
     BottomNavItem("observation", Icons.Default.Edit, "Observe"),
-    BottomNavItem("analytics", Icons.Default.Analytics, "Analytics"),
-    BottomNavItem("strategy", Icons.Default.Strategy, "Strategy")
+    BottomNavItem("analytics", Icons.Default.BarChart, "Analytics"),
+    BottomNavItem("strategy", Icons.Default.Lightbulb, "Strategy")
 )

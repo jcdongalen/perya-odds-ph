@@ -35,6 +35,10 @@ Pods/
 *.jar
 *.war
 *.ear
+.kotlin/
+
+# Heap dumps
+*.hprof
 
 # Other
 .vscode/

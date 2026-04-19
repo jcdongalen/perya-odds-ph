@@ -2,7 +2,6 @@ package com.jcdongalen.peryaodds.android.di
 
 import com.jcdongalen.peryaodds.shared.data.repository.SessionRepository
 import com.jcdongalen.peryaodds.shared.data.repository.createSessionRepository
-import com.jcdongalen.peryaodds.shared.domain.registry.DefaultGameRegistry
 import com.jcdongalen.peryaodds.shared.domain.registry.GameRegistry
 import com.jcdongalen.peryaodds.shared.domain.registry.GameRegistryProvider
 import com.jcdongalen.peryaodds.shared.presentation.GameSessionViewModel
@@ -10,7 +9,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.koin.android.ext.koin.androidContext
-import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
 val appModule = module {
@@ -31,7 +29,7 @@ val appModule = module {
     }
     
     // Provide GameSessionViewModel
-    viewModel {
+    single {
         GameSessionViewModel(
             gameRegistry = get(),
             repository = get(),

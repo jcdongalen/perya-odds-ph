@@ -20,10 +20,10 @@ fun ConfidenceBadge(
     modifier: Modifier = Modifier
 ) {
     val text = when (confidenceLevel) {
-        ConfidenceLevel.LOW -> "Low Confidence"
-        ConfidenceLevel.MEDIUM -> "Medium Confidence"
-        ConfidenceLevel.HIGH -> "High Confidence"
-        ConfidenceLevel.VERY_HIGH -> "Very High Confidence"
+        ConfidenceLevel.Low -> "Low Confidence"
+        ConfidenceLevel.Medium -> "Medium Confidence"
+        ConfidenceLevel.High -> "High Confidence"
+        ConfidenceLevel.VeryHigh -> "Very High Confidence"
     }
     
     Surface(

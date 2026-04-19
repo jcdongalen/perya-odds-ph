@@ -11,15 +11,17 @@ import androidx.compose.ui.unit.dp
 import com.jcdongalen.peryaodds.android.ui.components.BiasIndicator
 import com.jcdongalen.peryaodds.android.ui.components.ProbabilityBar
 import com.jcdongalen.peryaodds.shared.domain.engines.BiasDetectionEngine
-import com.jcdongalen.peryaodds.shared.domain.engines.ProbabilityEngine
+import com.jcdongalen.peryaodds.shared.domain.engines.DefaultProbabilityEngine
 import com.jcdongalen.peryaodds.shared.presentation.GameSessionViewModel
+
+private val probabilityEngine = DefaultProbabilityEngine()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnalyticsDashboard(viewModel: GameSessionViewModel) {
     val currentSession = viewModel.getCurrentSession()
     val gameConfig = viewModel.getCurrentGameConfig()
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -59,9 +61,9 @@ fun AnalyticsDashboard(viewModel: GameSessionViewModel) {
                 }
             }
         } else {
-            val probabilityResult = ProbabilityEngine.computeProbabilities(currentSession, gameConfig)
+            val probabilityResult = probabilityEngine.computeProbabilities(currentSession, gameConfig)
             val biasResult = BiasDetectionEngine.detectBias(probabilityResult)
-            
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -87,18 +89,18 @@ fun AnalyticsDashboard(viewModel: GameSessionViewModel) {
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
-                                text = "Confidence: ${probabilityResult.confidence}",
+                                text = "Confidence: ${probabilityResult.confidenceLevel}",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
                     }
                 }
-                
+
                 // Outcome analytics
                 items(gameConfig.outcomes) { outcome ->
-                    val outcomeProbability = probabilityResult.probabilities.find { it.outcome == outcome }
-                    val outcomeBias = biasResult.biases.find { it.outcome == outcome }
-                    
+                    val outcomeProbability = probabilityResult.perOutcome[outcome]
+                    val outcomeBias = biasResult.perOutcome[outcome]
+
                     if (outcomeProbability != null && outcomeBias != null) {
                         Card(
                             modifier = Modifier.fillMaxWidth()
@@ -116,15 +118,15 @@ fun AnalyticsDashboard(viewModel: GameSessionViewModel) {
                                         text = outcome,
                                         style = MaterialTheme.typography.titleMedium
                                     )
-                                    BiasIndicator(biasType = outcomeBias.biasType)
+                                    BiasIndicator(biasType = outcomeBias.classification)
                                 }
-                                
+
                                 ProbabilityBar(
                                     label = "Probability",
                                     observedProbability = outcomeProbability.observed,
                                     expectedProbability = outcomeProbability.expected
                                 )
-                                
+
                                 Text(
                                     text = "Deviation: ${String.format("%.2f", outcomeBias.deviation * 100)}%",
                                     style = MaterialTheme.typography.bodySmall,

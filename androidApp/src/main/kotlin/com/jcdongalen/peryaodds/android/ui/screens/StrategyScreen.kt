@@ -9,9 +9,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jcdongalen.peryaodds.android.ui.components.*
-import com.jcdongalen.peryaodds.shared.domain.engines.ProbabilityEngine
-import com.jcdongalen.peryaodds.shared.domain.engines.StrategyEngine
+import com.jcdongalen.peryaodds.shared.domain.engines.DefaultProbabilityEngine
+import com.jcdongalen.peryaodds.shared.domain.engines.DefaultStrategyEngine
 import com.jcdongalen.peryaodds.shared.presentation.GameSessionViewModel
+
+private val probabilityEngine = DefaultProbabilityEngine()
+private val strategyEngine = DefaultStrategyEngine(probabilityEngine)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -19,7 +22,7 @@ fun StrategyScreen(viewModel: GameSessionViewModel) {
     val currentSession = viewModel.getCurrentSession()
     val gameConfig = viewModel.getCurrentGameConfig()
     val strategyMode by viewModel.strategyMode.collectAsState()
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -37,9 +40,9 @@ fun StrategyScreen(viewModel: GameSessionViewModel) {
                 Text("No game selected")
             }
         } else {
-            val probabilityResult = ProbabilityEngine.computeProbabilities(currentSession, gameConfig)
-            val strategyResult = StrategyEngine.recommend(probabilityResult, strategyMode, gameConfig)
-            
+            val probabilityResult = probabilityEngine.computeProbabilities(currentSession, gameConfig)
+            val strategyResult = strategyEngine.recommend(currentSession, gameConfig, strategyMode)
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -69,14 +72,14 @@ fun StrategyScreen(viewModel: GameSessionViewModel) {
                         }
                     }
                 }
-                
+
                 // Win probability display
                 item {
                     WinProbabilityDisplay(
                         winProbability = strategyResult.winProbability
                     )
                 }
-                
+
                 // Confidence badge
                 item {
                     Row(
@@ -84,11 +87,11 @@ fun StrategyScreen(viewModel: GameSessionViewModel) {
                         horizontalArrangement = Arrangement.Center
                     ) {
                         ConfidenceBadge(
-                            confidenceLevel = strategyResult.confidence
+                            confidenceLevel = strategyResult.confidenceLevel
                         )
                     }
                 }
-                
+
                 // Recommended cards
                 item {
                     Card(
@@ -102,12 +105,10 @@ fun StrategyScreen(viewModel: GameSessionViewModel) {
                                 style = MaterialTheme.typography.titleMedium,
                                 modifier = Modifier.padding(bottom = 12.dp)
                             )
-                            
+
                             strategyResult.selectedCards.forEach { card ->
-                                val probability = probabilityResult.probabilities
-                                    .find { it.outcome == card }
-                                    ?.observed ?: 0.0
-                                
+                                val probability = probabilityResult.perOutcome[card]?.observed ?: 0.0
+
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -128,7 +129,7 @@ fun StrategyScreen(viewModel: GameSessionViewModel) {
                         }
                     }
                 }
-                
+
                 // High exposure warning for mode 3
                 if (strategyMode == 3) {
                     item {
@@ -158,7 +159,7 @@ fun StrategyScreen(viewModel: GameSessionViewModel) {
                         }
                     }
                 }
-                
+
                 // Disclaimer banner
                 item {
                     DisclaimerBanner(strategyMode = strategyMode)

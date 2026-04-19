@@ -10,6 +10,11 @@ import com.jcdongalen.peryaodds.shared.domain.registry.games.ThreeBallDropConfig
  */
 object GameRegistryProvider {
     /**
+     * Singleton GameRegistry instance with all games registered.
+     */
+    val registry: GameRegistry by lazy { provideRegistry() }
+
+    /**
      * Creates and returns a new GameRegistry instance with all games registered.
      */
     fun provideRegistry(): GameRegistry {
