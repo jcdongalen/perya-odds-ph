@@ -11,14 +11,14 @@ import androidx.compose.ui.unit.dp
 import com.jcdongalen.peryaodds.android.ui.components.BiasIndicator
 import com.jcdongalen.peryaodds.android.ui.components.ProbabilityBar
 import com.jcdongalen.peryaodds.shared.domain.engines.BiasDetectionEngine
-import com.jcdongalen.peryaodds.shared.domain.engines.DefaultProbabilityEngine
+import com.jcdongalen.peryaodds.shared.domain.engines.ProbabilityEngine
 import com.jcdongalen.peryaodds.shared.presentation.GameSessionViewModel
-
-private val probabilityEngine = DefaultProbabilityEngine()
+import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnalyticsDashboard(viewModel: GameSessionViewModel) {
+    val probabilityEngine: ProbabilityEngine = koinInject()
     val currentSession = viewModel.getCurrentSession()
     val gameConfig = viewModel.getCurrentGameConfig()
 

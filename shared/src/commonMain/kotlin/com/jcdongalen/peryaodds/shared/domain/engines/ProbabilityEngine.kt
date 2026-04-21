@@ -6,7 +6,11 @@ interface ProbabilityEngine {
     fun computeProbabilities(session: GameSession, config: GameConfig): ProbabilityResult
 }
 
-class DefaultProbabilityEngine : ProbabilityEngine {
+class DefaultProbabilityEngine(
+    private val lowThreshold: Int = 100,
+    private val mediumThreshold: Int = 200,
+    private val highThreshold: Int = 500
+) : ProbabilityEngine {
     override fun computeProbabilities(session: GameSession, config: GameConfig): ProbabilityResult {
         val totalRounds = session.totalRounds
         val confidenceLevel = assignConfidenceLevel(totalRounds)
@@ -46,10 +50,10 @@ class DefaultProbabilityEngine : ProbabilityEngine {
     
     private fun assignConfidenceLevel(totalRounds: Int): ConfidenceLevel {
         return when {
-            totalRounds < 100 -> ConfidenceLevel.Low
-            totalRounds in 100..199 -> ConfidenceLevel.Medium
-            totalRounds in 200..499 -> ConfidenceLevel.High
-            else -> ConfidenceLevel.VeryHigh
+            totalRounds < lowThreshold                          -> ConfidenceLevel.Low
+            totalRounds < mediumThreshold                       -> ConfidenceLevel.Medium
+            totalRounds < highThreshold                         -> ConfidenceLevel.High
+            else                                                -> ConfidenceLevel.VeryHigh
         }
     }
 }
