@@ -205,6 +205,13 @@ class GameSessionViewModel(
     }
     
     /**
+     * Clears the active game, returning to the game selection screen.
+     */
+    fun clearActiveGame() {
+        _activeGameType.value = null
+    }
+
+    /**
      * Clears any error message.
      */
     fun clearError() {

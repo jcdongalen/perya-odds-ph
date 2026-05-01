@@ -1,6 +1,7 @@
 package com.jcdongalen.peryaodds.android
 
 import android.os.Bundle
+import androidx.activity.compose.BackHandler
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -73,6 +74,11 @@ fun PeryaOddsApp() {
             )
         }
     } else {
+        // Intercept back press to return to game selection instead of exiting the app
+        BackHandler {
+            viewModel.clearActiveGame()
+        }
+
         // Show main navigation with bottom bar
         Scaffold(
             modifier = Modifier.fillMaxSize(),
